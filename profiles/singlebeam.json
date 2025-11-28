@@ -1,0 +1,84 @@
+{
+  "$schema": "https://example.com/gsf-profile-schema.json",
+  "profile": {
+    "name": "Single-Beam via Swath-Ping GSF",
+    "gsf_version": "03.11",
+    "description": "Use the Swath Bathymetry Ping record with exactly one beam to encode single-beam data, avoiding the legacy single-beam record type.",
+    "coordinate_reference": {
+      "horizontal_datum": "WGS-84",
+      "vertical_datum": "WGS-84 geoid"
+    },
+    "required_records": [
+      {
+        "record_type": "HeaderRecord",
+        "record_id": 1,
+        "description": "GSF magic string and version",
+        "required_fields": [ "VERSION" ]
+      },
+      {
+        "record_type": "SwathBathymetryPing",
+        "record_id": 2,
+        "description": "Single-beam ping encoded as a one-beam swath record",
+        "constraints": {
+          "num_beams": 1,
+          "centre_beam": 0
+        },
+        "required_header_fields": [
+          "timestamp",
+          "longitude",
+          "latitude",
+          "num_beams",
+          "centre_beam",
+          "ping_flags",
+          "tide_corrector",
+          "depth_corrector",
+          "heading",
+          "pitch",
+          "roll",
+          "heave",
+          "course",
+          "speed"
+        ],
+        "required_subrecords": [
+          { "subrecord_name": "ScaleFactors",        "subrecord_id": 100 },
+          { "subrecord_name": "DepthArray",           "subrecord_id":   1 },
+          { "subrecord_name": "AcrossTrackArray",     "subrecord_id":   3 },
+          { "subrecord_name": "AlongTrackArray",      "subrecord_id":   4 }
+        ],
+        "recommended_encoding": {
+          "ScaleFactors":      { "apply_to": [1,3,4], "multiplier": 100, "offset": 0,   "field_size_bytes": 2 },
+          "DepthArray":        { "precision_m": 0.01,  "offset_m": 0.0,   "bytes": 2 },
+          "AcrossTrackArray":  { "precision_m": 0.01,  "offset_m": 0.0,   "bytes": 2 },
+          "AlongTrackArray":   { "precision_m": 0.01,  "offset_m": 0.0,   "bytes": 2 }
+        }
+      }
+    ],
+    "optional_records": [
+      {
+        "record_type": "ProcessingParameters",
+        "record_id": 4,
+        "description": "Document any offsets or corrections applied"
+      },
+      {
+        "record_type": "SensorParameters",
+        "record_id": 5,
+        "description": "Sensor and motion-sensor mounting offsets"
+      },
+      {
+        "record_type": "SwathBathymetrySummary",
+        "record_id": 9,
+        "description": "Spatial/temporal extents and statistics"
+      },
+      {
+        "record_type": "CommentRecord",
+        "record_id": 6,
+        "description": "Free-form annotations"
+      },
+      {
+        "record_type": "HistoryRecord",
+        "record_id": 7,
+        "description": "Processing audit trail"
+      }
+    ]
+  }
+}

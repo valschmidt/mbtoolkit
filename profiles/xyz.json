@@ -1,0 +1,65 @@
+{
+  "$schema": "https://example.com/gsf-profile-schema.json",
+  "profile": {
+    "name": "Minimal XYZ",
+    "gsf_version": "03.11",
+    "description": "A bare-bones GSF profile containing only the records and subrecords needed to recover X/Y/Z coordinates.",
+    "coordinate_reference": {
+      "horizontal_datum": "WGS-84",
+      "vertical_datum": "WGS-84 geoid"
+    },
+    "required_records": [
+      {
+        "record_type": "HeaderRecord",
+        "record_id": 1,
+        "description": "GSF file format version tag"
+      },
+      {
+        "record_type": "SwathBathymetryPing",
+        "record_id": 2,
+        "description": "Multi-beam ping containing the XYZ data",
+        "required_header_fields": [
+          "timestamp",
+          "latitude",
+          "longitude",
+          "num_beams",
+          "centre_beam"
+        ],
+        "required_subrecords": [
+          {
+            "subrecord_name": "ScaleFactors",
+            "subrecord_id": 100,
+            "description": "Scaling multipliers & offsets for arrays"
+          },
+          {
+            "subrecord_name": "DepthArray",
+            "subrecord_id": 1,
+            "description": "Z values (depths) for each beam"
+          },
+          {
+            "subrecord_name": "AcrossTrackArray",
+            "subrecord_id": 3,
+            "description": "Y offsets for each beam"
+          },
+          {
+            "subrecord_name": "AlongTrackArray",
+            "subrecord_id": 4,
+            "description": "X offsets for each beam"
+          }
+        ],
+        "recommended_encoding": {
+          "DepthArray":   { "field_size_bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "AcrossTrackArray": { "field_size_bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "AlongTrackArray":  { "field_size_bytes": 2, "precision_m": 0.01, "offset_m": 0.0 }
+        }
+      }
+    ],
+    "optional_records": [
+      {
+        "record_type": "SwathBathySummary",
+        "record_id": 9,
+        "description": "Survey extents & stats (not required for raw XYZ recovery)"
+      }
+    ]
+  }
+}

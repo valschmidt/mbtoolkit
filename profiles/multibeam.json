@@ -1,0 +1,127 @@
+{
+  "$schema": "https://example.com/gsf-profile-schema.json",
+  "profile": {
+    "name": "Complete Multibeam GSF",
+    "gsf_version": "03.11",
+    "description": "A fully‐featured GSF profile for interoperability across multibeam toolchains, including all core records and subrecords.",
+    "coordinate_reference": {
+      "horizontal_datum": "WGS-84",
+      "vertical_datum": "WGS-84 geoid"
+    },
+    "required_records": [
+      {
+        "record_type": "HeaderRecord",
+        "record_id": 1,
+        "description": "Magic string identifying GSF version",
+        "required_fields": [
+          "VERSION"
+        ]
+      },
+      {
+        "record_type": "SwathBathymetryPing",
+        "record_id": 2,
+        "description": "Multibeam ping with full beam arrays",
+        "required_header_fields": [
+          "timestamp",
+          "longitude",
+          "latitude",
+          "num_beams",
+          "centre_beam",
+          "ping_flags",
+          "reserved",
+          "tide_corrector",
+          "depth_corrector",
+          "heading",
+          "pitch",
+          "roll",
+          "heave",
+          "course",
+          "speed",
+          "height",
+          "separation",
+          "gps_tide_corrector",
+          "spare"
+        ],
+        "required_subrecords": [
+          { "subrecord_name": "ScaleFactors",               "subrecord_id": 100 },
+          { "subrecord_name": "DepthArray",                  "subrecord_id":   1 },
+          { "subrecord_name": "NominalDepthArray",           "subrecord_id":   2 },
+          { "subrecord_name": "AcrossTrackArray",            "subrecord_id":   3 },
+          { "subrecord_name": "AlongTrackArray",             "subrecord_id":   4 },
+          { "subrecord_name": "TravelTimeArray",             "subrecord_id":   5 },
+          { "subrecord_name": "BeamAngleArray",              "subrecord_id":   6 },
+          { "subrecord_name": "MeanCalibratedAmplitudeArray","subrecord_id":   7 },
+          { "subrecord_name": "MeanRelativeAmplitudeArray",  "subrecord_id":   8 },
+          { "subrecord_name": "EchoWidthArray",              "subrecord_id":   9 },
+          { "subrecord_name": "QualityFactorArray",          "subrecord_id":  10 },
+          { "subrecord_name": "BeamFlagsArray",              "subrecord_id":  11 },
+          { "subrecord_name": "ReceiveHeaveArray",           "subrecord_id":  12 },
+          { "subrecord_name": "DepthErrorArray",             "subrecord_id":  13 },
+          { "subrecord_name": "AcrossTrackErrorArray",       "subrecord_id":  14 },
+          { "subrecord_name": "AlongTrackErrorArray",        "subrecord_id":  15 },
+          { "subrecord_name": "BeamAngleForwardArray",       "subrecord_id":  16 },
+          { "subrecord_name": "VerticalErrorArray",          "subrecord_id":  18 },
+          { "subrecord_name": "HorizontalErrorArray",        "subrecord_id":  19 },
+          { "subrecord_name": "SignalToNoiseArray",          "subrecord_id":  17 }
+        ],
+        "recommended_encoding": {
+          "DepthArray":                   { "bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "NominalDepthArray":            { "bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "AcrossTrackArray":             { "bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "AlongTrackArray":              { "bytes": 2, "precision_m": 0.01, "offset_m": 0.0 },
+          "TravelTimeArray":              { "bytes": 2, "precision_s": 1e-6, "offset_s": 0.0 },
+          "BeamAngleArray":               { "bytes": 2, "precision_deg": 0.01, "offset_deg": 0.0 },
+          "MeanCalibratedAmplitudeArray": { "bytes": 1, "precision_dB": 0.5, "offset_dB":  0.0 },
+          "EchoWidthArray":               { "bytes": 1, "precision_s": 1e-6, "offset_s": 0.0 }
+        }
+      },
+      {
+        "record_type": "SoundVelocityProfile",
+        "record_id": 3,
+        "description": "Water‐column sound speed versus depth"
+      },
+      {
+        "record_type": "ProcessingParameters",
+        "record_id": 4,
+        "description": "Parameters & offsets applied during processing"
+      },
+      {
+        "record_type": "SensorParameters",
+        "record_id": 5,
+        "description": "Sensor & motion‐sensor mount offsets"
+      },
+      {
+        "record_type": "SwathBathymetrySummary",
+        "record_id": 9,
+        "description": "Per‐file spatial & temporal extents, beam count statistics"
+      },
+      {
+        "record_type": "AttitudeRecord",
+        "record_id": 12,
+        "description": "High‐rate roll, pitch, heave time series"
+      },
+      {
+        "record_type": "NavigationError",
+        "record_id": 8,
+        "description": "Estimated horizontal/vertical positioning errors"
+      },
+      {
+        "record_type": "HVNavigationError",
+        "record_id": 11,
+        "description": "Extended navigation error including system type"
+      }
+    ],
+    "optional_records": [
+      {
+        "record_type": "CommentRecord",
+        "record_id": 6,
+        "description": "User‐supplied annotations"
+      },
+      {
+        "record_type": "HistoryRecord",
+        "record_id": 7,
+        "description": "Processing audit trail"
+      }
+    ]
+  }
+}
