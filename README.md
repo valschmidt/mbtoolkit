@@ -49,8 +49,8 @@ We welcome all contributions!
 Submit PRs: follow our CONTRIBUTING.md for guidelines; include tests & documentation
 
 # Documentation
-Toolkit User Guide: docs/user_guide.md
-Toolkit Developer Guide: docs/developer_guide.md
+- [Toolkit User Guide](docs/user_guide.md)
+- [Toolkit Developer Guide](docs/developer_guide.md)
 
 # License
-This project is released under the MIT License. See LICENSE for details.
+This project is released under the MIT License. See [LICENSE](LICENSE) for details.
