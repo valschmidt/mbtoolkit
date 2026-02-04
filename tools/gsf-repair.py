@@ -11,53 +11,9 @@ import json
 import os
 import struct
 import sys
-from typing import List, Dict, Any, Tuple
-from datetime import datetime, timezone
+from typing import Dict, Any
 from collections import defaultdict
-
-try:
-    import pygsf
-    # Check if pygsf is just a placeholder (has no actual exports)
-    if not hasattr(pygsf, 'GSFREADER'):
-        # Check if it's the placeholder package
-        is_placeholder = False
-        try:
-            import inspect
-            if inspect.getfile(pygsf):
-                with open(inspect.getfile(pygsf), 'r') as f:
-                    content = f.read()
-                    if 'uv pip install' in content or len(content.strip()) < 100:
-                        is_placeholder = True
-        except:
-            pass
-        
-        if is_placeholder:
-            print("Error: A placeholder pygsf package is installed instead of the real library.", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("The pygsf package on PyPI (version 0.1.1) is a placeholder and does not contain", file=sys.stderr)
-            print("the actual GSFREADER implementation. You need to install pygsf from a custom index.", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To fix this:", file=sys.stderr)
-            print("  1. Uninstall the placeholder: pip uninstall pygsf", file=sys.stderr)
-            print("  2. Install from your custom index using uv:", file=sys.stderr)
-            print("     uv pip install pygsf --index-url <YOUR_INDEX_URL>", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("Or if using pip with a custom index:", file=sys.stderr)
-            print("     pip install pygsf --index-url <YOUR_INDEX_URL>", file=sys.stderr)
-            sys.exit(1)
-        else:
-            raise ImportError("GSFREADER not found in pygsf module")
-    from pygsf import GSFREADER, SWATH_BATHYMETRY
-except ImportError as e:
-    print("Error: Failed to import from pygsf library.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("The pygsf library is required but appears to be missing or incorrectly installed.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("Note: The pygsf package on PyPI is a placeholder. You must install pygsf from", file=sys.stderr)
-    print("a custom package index that contains the actual implementation.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print(f"Import error details: {e}", file=sys.stderr)
-    sys.exit(1)
+from pygsf import GSFREADER, SWATH_BATHYMETRY
 
 # Import utility functions - handle both relative and absolute imports
 try:

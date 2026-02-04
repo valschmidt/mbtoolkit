@@ -5,6 +5,6 @@
 # Core dependencies
 numpy>=1.20.0
 
-# GSF file format library (available on PyPI)
-pygsf>=0.1.0
+# GSF file format library 
+-e ./pygsf
 

@@ -11,54 +11,12 @@ import json
 import os
 import sys
 import struct
-from typing import List, Dict, Any
+from pathlib import Path
+
+from typing import Dict, Any
 from collections import defaultdict
-from datetime import datetime, timezone
-
-try:
-    import pygsf
-    # Check if pygsf is just a placeholder (has no actual exports)
-    if not hasattr(pygsf, 'GSFREADER'):
-        # Check if it's the placeholder package
-        is_placeholder = False
-        try:
-            import inspect
-            if inspect.getfile(pygsf):
-                with open(inspect.getfile(pygsf), 'r') as f:
-                    content = f.read()
-                    if 'uv pip install' in content or len(content.strip()) < 100:
-                        is_placeholder = True
-        except:
-            pass
-        
-        if is_placeholder:
-            print("Error: A placeholder pygsf package is installed instead of the real library.", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("The pygsf package on PyPI (version 0.1.1) is a placeholder and does not contain", file=sys.stderr)
-            print("the actual GSFREADER implementation. You need to install pygsf from a custom index.", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("To fix this:", file=sys.stderr)
-            print("  1. Uninstall the placeholder: pip uninstall pygsf", file=sys.stderr)
-            print("  2. Install from your custom index using uv:", file=sys.stderr)
-            print("     uv pip install pygsf --index-url <YOUR_INDEX_URL>", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("Or if using pip with a custom index:", file=sys.stderr)
-            print("     pip install pygsf --index-url <YOUR_INDEX_URL>", file=sys.stderr)
-            sys.exit(1)
-        else:
-            raise ImportError("GSFREADER not found in pygsf module")
-    from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
-except ImportError as e:
-    print("Error: Failed to import from pygsf library.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("The pygsf library is required but appears to be missing or incorrectly installed.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print("Note: The pygsf package on PyPI is a placeholder. You must install pygsf from", file=sys.stderr)
-    print("a custom package index that contains the actual implementation.", file=sys.stderr)
-    print("", file=sys.stderr)
-    print(f"Import error details: {e}", file=sys.stderr)
-    sys.exit(1)
-
+from pygsf import GSFREADER
+    
 # Import utility functions - handle both relative and absolute imports
 try:
     from .utils import scan_subrecord_ids
@@ -112,38 +70,12 @@ def attr_map(key: str) -> str:
     """
     return key.replace("_", "")
 
-def main() -> None:
-    """
-    Main entry point for gsf-verify tool.
-    
-    Validates a GSF file against a profile JSON definition, checking:
-    - Required record types are present
-    - Required header fields exist
-    - Required subrecords are present
-    - Constraints are satisfied
-    
-    Prints a validation report indicating compliance or listing violations.
-    Exits with code 1 if files are not found or if errors occur.
-    """
-    p = argparse.ArgumentParser(
-        description="Validate a GSF file against a profile JSON."
-    )
-    p.add_argument("profile", help="Profile JSON file")
-    p.add_argument("gsf_file", help="GSF file to validate")
-    args = p.parse_args()
-
-    if not os.path.exists(args.profile):
-        print(f"Profile '{args.profile}' not found.", file=sys.stderr)
-        sys.exit(1)
-    if not os.path.exists(args.gsf_file):
-        print(f"GSF file '{args.gsf_file}' not found.", file=sys.stderr)
-        sys.exit(1)
-
-    profile = load_profile(args.profile)
+def verify(profile: str, gsf_file: str) -> None:
+    profile = load_profile(profile)
     required = { r['record_id']: r for r in profile.get('required_records', []) }
 
-    reader = GSFREADER(args.gsf_file)
-    fh = open(args.gsf_file, 'rb')
+    reader = GSFREADER(gsf_file)
+    fh = open(gsf_file, 'rb')
     violations = []
 
     # precompute ping header size
@@ -211,7 +143,7 @@ def main() -> None:
                 f"Missing required record type {rule['record_type']} (ID={rid})"
             )
 
-    print(f"\nValidation report for '{args.gsf_file}' against profile '{args.profile}':")
+    print(f"\nValidation report for '{gsf_file}' against profile '{profile}':")
     if not violations:
         print("  ✅ All checks passed. GSF file is compliant.")
     else:
@@ -220,6 +152,35 @@ def main() -> None:
             print("   -", v)
 
     fh.close()
+
+def main() -> None:
+    """
+    Main entry point for gsf-verify tool.
+    
+    Validates a GSF file against a profile JSON definition, checking:
+    - Required record types are present
+    - Required header fields exist
+    - Required subrecords are present
+    - Constraints are satisfied
+    
+    Prints a validation report indicating compliance or listing violations.
+    Exits with code 1 if files are not found or if errors occur.
+    """
+    p = argparse.ArgumentParser(
+        description="Validate a GSF file against a profile JSON."
+    )
+    p.add_argument("profile", help="Profile JSON file")
+    p.add_argument("gsf_file", help="GSF file to validate")
+    args = p.parse_args()
+
+    if not os.path.exists(args.profile):
+        print(f"Profile '{args.profile}' not found.", file=sys.stderr)
+        sys.exit(1)
+    if not os.path.exists(args.gsf_file):
+        print(f"GSF file '{args.gsf_file}' not found.", file=sys.stderr)
+        sys.exit(1)
+    
+    verify(args.profile, args.gsf_file)
 
 if __name__ == "__main__":
     main()

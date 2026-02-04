@@ -1,11 +1,15 @@
 # Overview
+
 Community GSF Toolkit
 An open-source suite of verification, conversion, and best-practice tools for the Generic Sensor Format (GSF). Our mission is to launch and foster an active user & developer community around a common processing format for bathymetry and sonar data.
 
 ## Vision & Goals
+
 ### Community Building
+
 - Engage primary stakeholders (surveyors, software developers, data managers)
 - Establish channels for collaboration, feedback, and support
+
 ### Standards & Best Practices
 - Document recommended workflows for GSF data ingestion, processing, and export
 - Provide style guides, coding conventions, and metadata guidelines
@@ -25,21 +29,34 @@ An open-source suite of verification, conversion, and best-practice tools for th
 
 # Getting Started
 1. Clone the repo
-    ```bash
-    git clone https://github.com/your-org/community-gsf-toolkit.git   cd community-gsf-toolkit
-    ```
-2. Install dependencies
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. Verify a GSF file
-    ```
-    gsf-validate --profile minimal-xyz.json path/to/data.gsf
-    ```
-4. Convert legacy data
-    ```bash
-    gsf-convert --in legacy.mgd77 --out modern.gsf
-    ```
+   ```bash
+   git clone https://github.com/oceanmapping/mbtoolkit.git   cd mbtoolkit
+   ```
+2. (Optional) create a virtual environment
+   ```bash
+   conda create --name venv python=3.13
+   conda activate venv
+   ```
+3. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Verify a GSF file
+   ```
+   python ./tools/gsf-verify.py minimal-xyz.json path/to/data.gsf # see ./profiles
+   ```
+5. Explore content of a GSF file
+   ```
+   python ./tools/gsf-info.py path/to/data.gsf --list --attitude
+   ```
+6. Verifies that bathy and attitude records have strictly time-increasing timestamps
+   ```
+   python ./tools/gsf-timecheck.py path/to/data.gsf
+   ```
+7. Repairs a GSF file by adding missing required subrecords as empty subrecords.
+   ```
+   python ./tools/gsf-repair.py minimal-xyz.json path/to/data.gsf -o path/to/data_fixed.gsf
+   ```
 
 # Contributing
 We welcome all contributions!
