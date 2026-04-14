@@ -1,7 +1,7 @@
 # Overview
 
-Community GSF Toolkit
-An open-source suite of verification, conversion, and best-practice tools for the Generic Sensor Format (GSF). Our mission is to launch and foster an active user & developer community around a common processing format for bathymetry and sonar data.
+Community Multibeam Toolkit
+An open-source suite of verification, conversion, and best-practice tools for the multibeam data, including Generic Sensor Format (GSF). Our mission is to launch and foster an active user & developer community around a common processing formats for bathymetry and sonar data.
 
 ## Vision & Goals
 
