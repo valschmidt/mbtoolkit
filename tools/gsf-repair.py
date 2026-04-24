@@ -13,7 +13,15 @@ import struct
 import sys
 from typing import Dict, Any
 from collections import defaultdict
-from pygsf import GSFREADER, SWATH_BATHYMETRY
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "pygsf"))
+try:
+    from pygsf import GSFREADER, SWATH_BATHYMETRY
+except ImportError:
+    # Submodule layout fallback: ./pygsf/pygsf.py
+    from pygsf.pygsf import GSFREADER, SWATH_BATHYMETRY
 
 # Import utility functions - handle both relative and absolute imports
 try:

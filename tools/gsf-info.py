@@ -13,7 +13,15 @@ import struct
 import numpy as np
 from collections import defaultdict
 from datetime import datetime, timezone
-from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "pygsf"))
+try:
+    from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+except ImportError:
+    # Submodule layout fallback: ./pygsf/pygsf.py
+    from pygsf.pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
 
 # Import utility functions - handle both relative and absolute imports
 try:

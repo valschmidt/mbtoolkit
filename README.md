@@ -30,7 +30,13 @@ An open-source suite of verification, conversion, and best-practice tools for th
 # Getting Started
 1. Clone the repo
    ```bash
-   git clone https://github.com/oceanmapping/mbtoolkit.git   cd mbtoolkit
+   git clone https://github.com/oceanmapping/mbtoolkit.git
+   cd mbtoolkit
+   git submodule update --init --recursive
+   ```
+   If submodule init fails with a missing commit error, update the submodule to the latest remote commit:
+   ```bash
+   git submodule update --init --recursive --remote
    ```
 2. (Optional) create a virtual environment
    ```bash
@@ -41,6 +47,7 @@ An open-source suite of verification, conversion, and best-practice tools for th
    ```bash
    pip install -r requirements.txt
    ```
+   Note: `pygsf` is consumed from the checked-out submodule in `./pygsf`.
 4. Verify a GSF file
    ```
    python ./tools/gsf-verify.py minimal-xyz.json path/to/data.gsf # see ./profiles
