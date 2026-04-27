@@ -10,15 +10,7 @@ and a final summary.
 import argparse
 import os
 import sys
-from pathlib import Path
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "pygsf"))
-try:
-    from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
-except ImportError:
-    # Submodule layout fallback: ./pygsf/pygsf.py
-    from pygsf.pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
 
 def parse_args() -> argparse.Namespace:
     """

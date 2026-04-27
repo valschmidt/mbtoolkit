@@ -40,6 +40,7 @@ mb-community-toolkit/
    ```bash
    pip install -r requirements.txt
    ```
+   No git submodules are required; `pygsf` is installed from pip.
 
 3. (Optional) Install in development mode if creating a package structure
 

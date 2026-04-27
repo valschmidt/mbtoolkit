@@ -15,6 +15,8 @@ Welcome to the Community GSF Toolkit user guide. This document provides instruct
 pip install -r requirements.txt
 ```
 
+No git submodules are required; `pygsf` is installed from pip.
+
 This will install:
 - `numpy` - For numerical operations
 - `pygsf` - GSF file format library

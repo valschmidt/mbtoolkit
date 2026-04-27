@@ -4,7 +4,7 @@
 
 # Core dependencies
 numpy>=1.20.0
+pygsf>=0.1.0
 
-# The pygsf code is consumed from the git submodule at ./pygsf.
-# It is not currently packaged for pip editable installs.
+# GSF file format library
 
