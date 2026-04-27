@@ -104,7 +104,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print ping headers + decoded sub‑records payloads"
     )
-    return p.parse_args()
+    args = p.parse_args()
+    if not args.list and not args.positions and not args.depths and not args.depthStats and not args.attitude and not args.summary and not args.pingHeader and not args.pingHeaderVerbose:
+        args.summary = True
+    return args
 
 def main() -> None:
     """
