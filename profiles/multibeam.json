@@ -3,7 +3,7 @@
   "profile": {
     "name": "Complete Multibeam GSF",
     "gsf_version": "03.11",
-    "description": "A fully‐featured GSF profile for interoperability across multibeam toolchains, including all core records and subrecords.",
+    "description": "A fully-featured GSF profile for interoperability across multibeam toolchains, including all core records and subrecords.",
     "coordinate_reference": {
       "horizontal_datum": "WGS-84",
       "vertical_datum": "WGS-84 geoid"
@@ -78,7 +78,7 @@
       {
         "record_type": "SoundVelocityProfile",
         "record_id": 3,
-        "description": "Water‐column sound speed versus depth"
+        "description": "Water-column sound speed versus depth"
       },
       {
         "record_type": "ProcessingParameters",
@@ -88,17 +88,17 @@
       {
         "record_type": "SensorParameters",
         "record_id": 5,
-        "description": "Sensor & motion‐sensor mount offsets"
+        "description": "Sensor & motion-sensor mount offsets"
       },
       {
         "record_type": "SwathBathymetrySummary",
         "record_id": 9,
-        "description": "Per‐file spatial & temporal extents, beam count statistics"
+        "description": "Per-file spatial & temporal extents, beam count statistics"
       },
       {
         "record_type": "AttitudeRecord",
         "record_id": 12,
-        "description": "High‐rate roll, pitch, heave time series"
+        "description": "High-rate roll, pitch, heave time series"
       },
       {
         "record_type": "NavigationError",
@@ -115,7 +115,7 @@
       {
         "record_type": "CommentRecord",
         "record_id": 6,
-        "description": "User‐supplied annotations"
+        "description": "User-supplied annotations"
       },
       {
         "record_type": "HistoryRecord",
