@@ -10,7 +10,13 @@ and a final summary.
 import argparse
 import os
 import sys
-from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from readers.base import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
 
 def parse_args() -> argparse.Namespace:
     """

@@ -15,11 +15,11 @@ Welcome to the Community GSF Toolkit user guide. This document provides instruct
 pip install -r requirements.txt
 ```
 
-No git submodules are required; `pygsf` is installed from pip.
+No git submodules are required; the GSF reader is bundled in `readers/base`.
 
 This will install:
 - `numpy` - For numerical operations
-- `pygsf` - GSF file format library
+- bundled GSF reader code in `readers/base`
 
 ## Available Tools
 
@@ -125,9 +125,9 @@ python tools/gsf-timecheck.py your_file.gsf
 
 ### Import Errors
 
-If you see import errors for `pygsf`, ensure it's installed:
+If you see import errors, run commands from the repository root so `readers/base` is importable:
 ```bash
-pip install pygsf
+python tools/gsf-info.py data/sample.gsf --summary
 ```
 
 ### File Not Found

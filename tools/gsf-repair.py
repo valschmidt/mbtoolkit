@@ -14,7 +14,11 @@ import sys
 from typing import Dict, Any
 from collections import defaultdict
 from pathlib import Path
-from pygsf import GSFREADER, SWATH_BATHYMETRY
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from readers.base import GSFREADER, SWATH_BATHYMETRY
 
 # Import utility functions - handle both relative and absolute imports
 try:

@@ -42,7 +42,7 @@ An open-source suite of verification, conversion, and best-practice tools for th
    ```bash
    pip install -r requirements.txt
    ```
-   This installs `pygsf` from pip along with other dependencies.
+   The toolkit uses the bundled reader implementation in `readers/base`.
 4. Verify a GSF file
    ```
    python ./tools/gsf-verify.py minimal-xyz.json path/to/data.gsf # see ./profiles

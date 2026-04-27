@@ -4,7 +4,6 @@
 
 # Core dependencies
 numpy>=1.20.0
-pygsf>=0.1.0
 
-# GSF file format library
+# GSF reader implementation is included in readers/base
 

@@ -38,7 +38,6 @@ classifiers = [
 
 dependencies = [
     "numpy>=1.20.0",
-    "pygsf>=0.1.0",
 ]
 
 [project.optional-dependencies]

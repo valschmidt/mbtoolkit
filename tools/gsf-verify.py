@@ -15,7 +15,11 @@ from pathlib import Path
 
 from typing import Dict, Any
 from collections import defaultdict
-from pygsf import GSFREADER
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from readers.base import GSFREADER
     
 # Import utility functions - handle both relative and absolute imports
 try:
@@ -54,7 +58,7 @@ def attr_map(key: str) -> str:
     
     Converts underscore-separated field names (e.g., "num_beams") to
     attribute names without underscores (e.g., "numbeams") as used by
-    the pygsf library.
+    the bundled GSF reader library.
     
     Args:
         key: Field name from profile (may contain underscores).

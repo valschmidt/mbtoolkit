@@ -40,7 +40,7 @@ mb-community-toolkit/
    ```bash
    pip install -r requirements.txt
    ```
-   No git submodules are required; `pygsf` is installed from pip.
+   No git submodules are required; the reader implementation is bundled in `readers/base`.
 
 3. (Optional) Install in development mode if creating a package structure
 
@@ -48,13 +48,13 @@ mb-community-toolkit/
 
 ### Core Components
 
-- **GSF Reader**: Uses `pygsf` library to read GSF file format
+- **GSF Reader**: Uses the bundled `readers/base` implementation to read GSF data
 - **Profile System**: JSON-based validation profiles define required records and subrecords
 - **Command Tools**: Standalone scripts for specific operations
 
 ### Key Dependencies
 
-- `pygsf`: GSF file format library (available on PyPI)
+- `readers/base`: bundled GSF reader implementation
 - `numpy`: Numerical operations for array processing
 
 ## Code Organization
@@ -98,7 +98,7 @@ JSON files defining validation rules:
 
 **Reading GSF Files:**
 ```python
-from pygsf import GSFREADER, SWATH_BATHYMETRY
+from readers.base import GSFREADER, SWATH_BATHYMETRY
 
 reader = GSFREADER("file.gsf")
 while reader.moreData():
@@ -181,7 +181,7 @@ python tools/gsf-verify.py profiles/xyz.json data/sample.gsf
 
 ### Common Issues
 
-- **Import errors**: Ensure `pygsf` is installed via pip
+- **Import errors**: Run tools from the repository root so `readers/base` is importable
 - **File format errors**: Verify GSF file integrity
 - **Profile validation**: Check JSON syntax and structure
 

@@ -13,7 +13,13 @@ import struct
 import numpy as np
 from collections import defaultdict
 from datetime import datetime, timezone
-from pygsf import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from readers.base import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
 
 # Import utility functions - handle both relative and absolute imports
 try:
@@ -29,7 +35,7 @@ except ImportError:
 # Mapping of SWATH_BATHY subrecord IDs → names/attribute keys on datagram
 #
 # This dictionary maps subrecord ID numbers to their corresponding attribute
-# names as used in the pygsf library. Used for displaying subrecord information
+# names as used in the bundled GSF reader. Used for displaying subrecord information
 # in verbose output modes.
 subrecord_names = {
     100: "SCALE_FACTORS",
