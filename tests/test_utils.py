@@ -4,7 +4,7 @@ Tests for utility functions.
 import pytest
 import struct
 import numpy as np
-from tools.utils import posix_seconds, scan_subrecords, scan_subrecord_ids
+from tools.utils import ping_header_size, posix_seconds, scan_subrecords, scan_subrecord_ids
 
 
 class TestScanSubrecords:
@@ -160,3 +160,59 @@ class TestPosixSeconds:
 
         assert isinstance(result, float)
         assert result == 60.0
+
+
+def ping_record(subrecords, header_size=60):
+    """
+    Build a raw ping record buffer from (subrecord_id, size_field, payload) tuples.
+
+    Args:
+        subrecords: The subrecords to include, in order. The size field is
+            given separately so tests can build the intensity series
+            subrecord, whose size field also counts its identifier word.
+        header_size: The size of the zero-filled ping header.
+
+    Returns:
+        The record bytes: size word, identifier word, header, and subrecords.
+    """
+    body = b"\x00" * header_size
+    for sub_id, size_field, payload in subrecords:
+        body += struct.pack(">I", (sub_id << 24) | size_field) + payload
+    return struct.pack(">II", len(body), 2) + body
+
+
+class TestIntensitySeriesSubrecord:
+    """Tests for scanning past the intensity series subrecord (21)."""
+
+    def test_subrecord_after_intensity_series_is_found(self):
+        """Test that the subrecord following an intensity series is read correctly."""
+        # The intensity series' size field counts its own 4-byte identifier
+        # word, as the GSF reference library writes it.
+        raw = ping_record([(21, 8 + 4, b"12345678"), (156, 4, b"abcd")])
+
+        assert scan_subrecord_ids(raw, 60) == [21, 156]
+        assert scan_subrecords(raw, 60) == [(21, b"12345678"), (156, b"abcd")]
+
+    def test_zero_size_intensity_series_does_not_stall(self):
+        """Test that an intensity series with a zero size field still advances the scan."""
+        raw = ping_record([(21, 0, b""), (1, 2, b"xy")])
+
+        assert scan_subrecord_ids(raw, 60) == [21, 1]
+
+
+class TestPingHeaderSize:
+    """Tests for ping_header_size function."""
+
+    def test_version_3_header(self):
+        """Test that GSF 3.x pings have the 56-byte header."""
+        assert ping_header_size("GSF-v03.09") == 56
+        assert ping_header_size("GSF-v03.11") == 56
+
+    def test_version_2_header(self):
+        """Test that GSF 2.x pings have the 42-byte header, without the 3.x fields."""
+        assert ping_header_size("GSF-v02.09") == 42
+
+    def test_unparseable_version_defaults_to_version_3(self):
+        """Test that a missing or malformed version falls back to the 56-byte header."""
+        assert ping_header_size(None) == 56
+        assert ping_header_size("garbage") == 56
