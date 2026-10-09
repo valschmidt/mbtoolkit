@@ -142,14 +142,18 @@ pytest -v
 
 The `tests/` directory contains:
 - `test_utils.py` - Tests for utility functions
+- `test_gsf_info.py` - Tests for gsf-info
 - `test_gsf_verify.py` - Tests for profile loading and validation
 - `test_gsf_repair.py` - Tests for repair functionality
+- `test_gsf_timecheck.py` - Tests for time-order checking
+- `gsf_files.py` - Helpers that build synthetic GSF files, so no sample data is needed
 - `conftest.py` - Shared pytest fixtures
 
 ### Writing Tests
 
 1. Create test files following the pattern `test_*.py`
-2. Use pytest fixtures from `conftest.py` when available
+2. Use pytest fixtures from `conftest.py` when available, such as `make_gsf` to write a
+   synthetic GSF file
 3. Follow existing test structure and naming conventions
 4. See `tests/README.md` for more details
 
