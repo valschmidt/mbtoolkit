@@ -24,7 +24,7 @@ mb-community-toolkit/
 
 ### Prerequisites
 
-- Python 3.7+
+- Python 3.8+
 - pip
 - Git
 

@@ -6,7 +6,7 @@ Welcome to the Community GSF Toolkit user guide. This document provides instruct
 
 ### Prerequisites
 
-- Python 3.7 or higher
+- Python 3.8 or higher
 - pip (Python package installer)
 
 ### Install Dependencies
