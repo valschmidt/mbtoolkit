@@ -13,16 +13,16 @@ import sys
 
 from typing import Dict, Any, Optional
 
-from GSFU import BEAM_ARRAY_SUBRECORD_IDS, gsf
+from GSFU import gsf
 
 # Import utility functions - handle both relative and absolute imports
 try:
-    from .utils import ping_header_size, scan_subrecord_ids
+    from .utils import missing_subrecords, ping_header_size, scan_subrecord_ids
 except ImportError:
     # Fallback for when script is run directly
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
-    from utils import ping_header_size, scan_subrecord_ids
+    from utils import missing_subrecords, ping_header_size, scan_subrecord_ids
 
 #: Maps each swath bathymetry ping header field name used in profiles to the
 #: key gsfu decodes it into. The reserved and spare fields are part of every
@@ -49,9 +49,6 @@ PROFILE_FIELD_TO_GSFU = {
     "gps_tide_corrector": "GPSTideCorrector_m",
     "spare": None,
 }
-
-#: Maps each beam array subrecord ID to the gsfu 'Beams' column it is decoded into.
-BEAM_ARRAY_LABELS = {sid: label for label, sid in BEAM_ARRAY_SUBRECORD_IDS.items()}
 
 
 def load_profile(path: str) -> Dict[str, Any]:
@@ -181,24 +178,16 @@ def verify(profile_path: str, gsf_file: str) -> None:
 
                 # 3) required subrecords
                 if 'required_subrecords' in rule:
-                    beams = record.get('Beams', {})
-                    raw_ids = None
-                    for sub in rule['required_subrecords']:
-                        rid = sub['subrecord_id']
-                        label = BEAM_ARRAY_LABELS.get(rid)
-                        if label is not None:
-                            present = beams.get(label) is not None
-                        else:
-                            if raw_ids is None:
-                                fh.seek(offset)
-                                raw = fh.read(record_sizes[offset])
-                                raw_ids = scan_subrecord_ids(raw, ping_hdr_size)
-                            present = rid in raw_ids
-                        if not present:
-                            violations.append(
-                                f"Rec {recid} @offset {offset}: missing subrecord "
-                                f"'{sub['subrecord_name']}' ({rid})"
-                            )
+                    def read_subrecord_ids(offset=offset):
+                        fh.seek(offset)
+                        return scan_subrecord_ids(fh.read(record_sizes[offset]), ping_hdr_size)
+
+                    wanted = [(sub['subrecord_id'], sub['subrecord_name'])
+                              for sub in rule['required_subrecords']]
+                    for rid, name in missing_subrecords(record, wanted, read_subrecord_ids):
+                        violations.append(
+                            f"Rec {recid} @offset {offset}: missing subrecord '{name}' ({rid})"
+                        )
     except Exception as e:
         violations.append(f"Error reading datagram: {e}")
 

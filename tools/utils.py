@@ -3,9 +3,13 @@ Shared utility functions for GSF file processing.
 """
 import struct
 from datetime import datetime
-from typing import List, Tuple, Union
+from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
+from GSFU import BEAM_ARRAY_SUBRECORD_IDS
+
+#: Maps each beam array subrecord ID to the gsfu 'Beams' column it is decoded into.
+BEAM_ARRAY_LABELS = {sid: label for label, sid in BEAM_ARRAY_SUBRECORD_IDS.items()}
 
 
 def posix_seconds(value: Union[str, np.datetime64, np.ndarray]) -> Union[float, np.ndarray]:
@@ -143,3 +147,41 @@ def scan_subrecord_ids(raw: bytes, ping_header_size: int) -> List[int]:
         offset += _subrecord_extent(sub_id, length)[1]
     return subs
 
+
+def missing_subrecords(
+    ping: Dict[str, Any],
+    required: Sequence[Tuple[int, str]],
+    read_subrecord_ids: Callable[[], List[int]],
+) -> List[Tuple[int, str]]:
+    """
+    Return the required subrecords a decoded swath bathymetry ping lacks.
+
+    A beam array subrecord is present when gsfu decoded that array, that is,
+    when the ping's 'Beams' column for it is not None. Any other subrecord,
+    such as the scale factors (100), has no column, so it is looked for among
+    the ping's raw subrecord IDs. Those are only read if one is needed.
+
+    Args:
+        ping: The ping, as decoded by gsfu.
+        required: The required subrecords, as (subrecord_id, name) tuples.
+        read_subrecord_ids: A function that returns the subrecord IDs in the
+            ping's raw bytes, as scan_subrecord_ids() does.
+
+    Returns:
+        The (subrecord_id, name) tuples from `required` that the ping lacks,
+        in the same order.
+    """
+    beams = ping.get("Beams", {})
+    raw_ids = None
+    missing = []
+    for subrecord_id, name in required:
+        label = BEAM_ARRAY_LABELS.get(subrecord_id)
+        if label is not None:
+            present = beams.get(label) is not None
+        else:
+            if raw_ids is None:
+                raw_ids = read_subrecord_ids()
+            present = subrecord_id in raw_ids
+        if not present:
+            missing.append((subrecord_id, name))
+    return missing

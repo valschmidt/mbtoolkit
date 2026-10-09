@@ -4,7 +4,13 @@ Tests for utility functions.
 import pytest
 import struct
 import numpy as np
-from tools.utils import ping_header_size, posix_seconds, scan_subrecords, scan_subrecord_ids
+from tools.utils import (
+    missing_subrecords,
+    ping_header_size,
+    posix_seconds,
+    scan_subrecords,
+    scan_subrecord_ids,
+)
 
 
 class TestScanSubrecords:
@@ -216,3 +222,41 @@ class TestPingHeaderSize:
         """Test that a missing or malformed version falls back to the 56-byte header."""
         assert ping_header_size(None) == 56
         assert ping_header_size("garbage") == 56
+
+
+class TestMissingSubrecords:
+    """Tests for missing_subrecords function."""
+
+    @staticmethod
+    def ping_with(**beams):
+        """Return a minimal decoded ping whose 'Beams' table holds the given columns."""
+        return {"Beams": {"Depth_m": None, "AlongTrack_m": None, "BeamFlags": None, **beams}}
+
+    def test_beam_arrays_are_judged_by_their_columns(self):
+        """Test that a beam array is present exactly when its column is not None."""
+        ping = self.ping_with(Depth_m=np.array([1.0]), BeamFlags=np.empty(0))
+        required = [(1, "DepthArray"), (3, "AlongTrackArray"), (16, "BeamFlagsArray")]
+
+        result = missing_subrecords(ping, required, lambda: pytest.fail("raw IDs not needed"))
+
+        assert result == [(3, "AlongTrackArray")]
+
+    def test_other_subrecords_are_looked_for_in_the_raw_ids(self):
+        """Test that scale factors and other non-array subrecords use the raw subrecord IDs."""
+        required = [(100, "ScaleFactors"), (156, "KMALLSpecific")]
+
+        result = missing_subrecords(self.ping_with(), required, lambda: [1, 156])
+
+        assert result == [(100, "ScaleFactors")]
+
+    def test_raw_ids_are_read_at_most_once(self):
+        """Test that the raw subrecord IDs are read only once, however many are needed."""
+        calls = []
+
+        def read_ids():
+            calls.append(1)
+            return [100]
+
+        missing_subrecords(self.ping_with(), [(100, "ScaleFactors"), (21, "Intensity")], read_ids)
+
+        assert len(calls) == 1
