@@ -3,7 +3,8 @@ Tests for utility functions.
 """
 import pytest
 import struct
-from tools.utils import scan_subrecords, scan_subrecord_ids
+import numpy as np
+from tools.utils import posix_seconds, scan_subrecords, scan_subrecord_ids
 
 
 class TestScanSubrecords:
@@ -132,3 +133,30 @@ class TestScanSubrecordIds:
         assert len(result) == 5
         assert result == [10, 11, 12, 13, 14]
 
+
+class TestPosixSeconds:
+    """Tests for posix_seconds function."""
+
+    def test_iso_string_with_utc_offset(self):
+        """Test converting a gsfu PingTime string, which carries a UTC offset."""
+        assert posix_seconds("2024-08-26T05:27:53.719285+00:00") == pytest.approx(
+            1724650073.719285, abs=1e-6
+        )
+
+    def test_datetime64_array(self):
+        """Test converting a gsfu attitude Time array, keeping sub-second precision."""
+        times = np.array(
+            ["1970-01-01T00:00:01.5", "1970-01-01T00:00:02.25"], dtype="datetime64[ns]"
+        )
+
+        result = posix_seconds(times)
+
+        assert isinstance(result, np.ndarray)
+        assert list(result) == pytest.approx([1.5, 2.25])
+
+    def test_single_datetime64_value(self):
+        """Test that a single datetime64 value converts to a plain float."""
+        result = posix_seconds(np.datetime64("1970-01-01T00:01:00", "ns"))
+
+        assert isinstance(result, float)
+        assert result == 60.0

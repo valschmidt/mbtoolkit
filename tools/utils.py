@@ -2,7 +2,33 @@
 Shared utility functions for GSF file processing.
 """
 import struct
-from typing import List, Tuple
+from datetime import datetime
+from typing import List, Tuple, Union
+
+import numpy as np
+
+
+def posix_seconds(value: Union[str, np.datetime64, np.ndarray]) -> Union[float, np.ndarray]:
+    """
+    Convert a time decoded by gsfu to POSIX seconds.
+
+    gsfu returns a ping's PingTime as an ISO 8601 string with a UTC offset,
+    and attitude measurement times as a numpy datetime64 array. The tools
+    report times as POSIX seconds, so this converts either form.
+
+    Args:
+        value: An ISO 8601 string, a numpy datetime64 value, or a numpy
+            datetime64 array.
+
+    Returns:
+        The time in POSIX seconds, as a float for a single value or as a
+        float64 array for an array.
+    """
+    if isinstance(value, str):
+        return datetime.fromisoformat(value).timestamp()
+    nanoseconds = np.asarray(value).astype("datetime64[ns]").astype(np.int64)
+    seconds = nanoseconds / 1e9
+    return float(seconds) if seconds.ndim == 0 else seconds
 
 
 def scan_subrecords(raw: bytes, ping_header_size: int) -> List[Tuple[int, bytes]]:
