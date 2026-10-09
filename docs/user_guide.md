@@ -15,11 +15,9 @@ Welcome to the Community GSF Toolkit user guide. This document provides instruct
 pip install -r requirements.txt
 ```
 
-No git submodules are required; the GSF reader is bundled in `readers/base`.
-
 This will install:
 - `numpy` - For numerical operations
-- bundled GSF reader code in `readers/base`
+- `gsfu` - For reading and writing GSF files
 
 ## Available Tools
 
@@ -130,7 +128,8 @@ python tools/gsf_timecheck.py your_file.gsf
 
 ### Import Errors
 
-If you see import errors, run commands from the repository root so `readers/base` is importable:
+If you see import errors, make sure the dependencies are installed (`pip install -r requirements.txt`),
+and run commands from the repository root:
 ```bash
 python tools/gsf_info.py data/sample.gsf --summary
 ```

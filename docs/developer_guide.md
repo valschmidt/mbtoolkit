@@ -40,7 +40,7 @@ mb-community-toolkit/
    ```bash
    pip install -r requirements.txt
    ```
-   No git submodules are required; the reader implementation is bundled in `readers/base`.
+   This installs [gsfu](https://pypi.org/project/gsfu/), the library the tools read GSF files with.
 
 3. (Optional) Install in development mode if creating a package structure
 
@@ -48,13 +48,13 @@ mb-community-toolkit/
 
 ### Core Components
 
-- **GSF Reader**: Uses the bundled `readers/base` implementation to read GSF data
+- **GSF Reader**: Uses the `gsfu` library to read GSF data
 - **Profile System**: JSON-based validation profiles define required records and subrecords
 - **Command Tools**: Standalone scripts for specific operations
 
 ### Key Dependencies
 
-- `readers/base`: bundled GSF reader implementation
+- `gsfu`: GSF reader and writer (https://pypi.org/project/gsfu/)
 - `numpy`: Numerical operations for array processing
 
 ## Code Organization
@@ -98,12 +98,12 @@ JSON files defining validation rules:
 
 **Reading GSF Files:**
 ```python
-from readers.base import GSFREADER, SWATH_BATHYMETRY
+from GSFU import gsf
 
-reader = GSFREADER("file.gsf")
-while reader.moreData():
-    nbytes, recid, dg = reader.readDatagram()
-    # Process datagram
+reader = gsf("file.gsf")
+for record_type, offset, record in reader.iter_records("SWATH_BATHYMETRY_PING"):
+    depths = record["Beams"]["Depth_m"]  # None if the ping has no depth array
+    # Process the ping
 ```
 
 **Profile Loading:**
@@ -181,7 +181,7 @@ python tools/gsf_verify.py profiles/xyz.json data/sample.gsf
 
 ### Common Issues
 
-- **Import errors**: Run tools from the repository root so `readers/base` is importable
+- **Import errors**: Install the dependencies with `pip install -r requirements.txt`
 - **File format errors**: Verify GSF file integrity
 - **Profile validation**: Check JSON syntax and structure
 

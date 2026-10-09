@@ -40,7 +40,8 @@ An open-source suite of verification, conversion, and best-practice tools for Ge
    ```bash
    pip install -r requirements.txt
    ```
-   The toolkit uses the bundled reader implementation in `readers/base`.
+   The toolkit reads and writes GSF files with the [gsfu](https://pypi.org/project/gsfu/)
+   library, which this installs.
 4. Verify a GSF file
    ```
    python ./tools/gsf_verify.py minimal-xyz.json path/to/data.gsf # see ./profiles

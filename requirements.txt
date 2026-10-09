@@ -8,5 +8,3 @@ numpy>=1.20.0
 # GSF file reading and writing (https://pypi.org/project/gsfu/)
 gsfu>=0.5.1
 
-# GSF reader implementation is included in readers/base
-
