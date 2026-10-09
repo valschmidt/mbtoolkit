@@ -9,27 +9,19 @@ files, including datagram summaries, ping headers, depth statistics, and attitud
 import argparse
 import os
 import sys
-import struct
 import numpy as np
 from collections import defaultdict
-from datetime import datetime, timezone
-from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from readers.base import GSFREADER, SWATH_BATHYMETRY, ATTITUDE
+from GSFU import BEAM_ARRAY_SUBRECORD_IDS, RecordType, gsf
 
 # Import utility functions - handle both relative and absolute imports
 try:
-    from .utils import scan_subrecords
+    from .utils import ping_header_size, posix_seconds, scan_subrecords
 except ImportError:
     # Fallback for when script is run directly
-    import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
-    from utils import scan_subrecords
+    from utils import ping_header_size, posix_seconds, scan_subrecords
 
 # ------------------------------------------------------------------------------
 # Mapping of SWATH_BATHY subrecord IDs → names/attribute keys on datagram
@@ -71,6 +63,39 @@ subrecord_names = {
     30:  "TVG_DB_ARRAY",
     # sensor‑specific IDs omitted for brevity...
 }
+
+# Maps each beam array subrecord ID to the gsfu 'Beams' column it is decoded
+# into, for printing decoded subrecord contents in verbose output modes.
+beam_array_labels = {sid: label for label, sid in BEAM_ARRAY_SUBRECORD_IDS.items()}
+
+
+def records_in_file_order(reader, decoded_types):
+    """
+    Yield every record of an indexed GSF file in file order, decoding only some types.
+
+    Decoding every record can be slow; a file of high-rate attitude data can
+    hold hundreds of thousands of attitude records. This decodes only the
+    record types asked for, and yields every other record without its
+    contents, in the same order the records appear in the file.
+
+    Args:
+        reader: A gsfu gsf instance whose index_file() has been called.
+        decoded_types: The RecordType values whose records to decode.
+
+    Yields:
+        (record_type, byte_offset, record) tuples, where record is the
+        record as decoded by gsfu, or None for a type not in decoded_types.
+    """
+    decoders = {rtype: reader.iter_records(rtype) for rtype in decoded_types}
+    index = zip(reader.Index["RecordID"].tolist(), reader.Index["ByteOffset"].tolist())
+    for recid, offset in index:
+        record_type = RecordType(recid)
+        if record_type in decoders:
+            _type, offset, record = next(decoders[record_type])
+            yield record_type, offset, record
+        else:
+            yield record_type, offset, None
+
 
 def parse_args() -> argparse.Namespace:
     """
@@ -126,7 +151,11 @@ def main() -> None:
         sys.exit(1)
 
     fh = open(args.filename, "rb")
-    reader = GSFREADER(args.filename)
+    reader = gsf(args.filename)
+    reader.index_file()
+    record_sizes = dict(
+        zip(reader.Index["ByteOffset"].tolist(), reader.Index["TotalBytes"].tolist())
+    )
 
     recordnames = {
         1:  "HEADER",
@@ -144,73 +173,70 @@ def main() -> None:
     }
 
     datagram_counts = defaultdict(int)
+    for recid in reader.Index["RecordID"].tolist():
+        datagram_counts[recid] += 1
     valid_depth_pings = 0
     empty_depth_pings = 0
 
-    # ping header struct (same as in pygsf)
-    ping_hdr_fmt = ">llll5hlH3h2Hlllh"
-    ping_hdr_size = struct.calcsize(ping_hdr_fmt)
+    # The fixed ping header's size depends on the file's GSF version.
+    ping_hdr_size = ping_header_size(reader.gsfVersion)
 
-    while reader.moreData():
+    # Only the record types an option needs are decoded; the summary and
+    # --list come straight from the index, and every other record is passed
+    # through undecoded, so that output stays in file order.
+    decoded_types = set()
+    if (args.positions or args.depths or args.depthStats
+            or args.pingHeader or args.pingHeaderVerbose):
+        decoded_types.add(RecordType.GSF_RECORD_SWATH_BATHYMETRY_PING)
+    if args.attitude:
+        decoded_types.add(RecordType.GSF_RECORD_ATTITUDE)
+    records = records_in_file_order(reader, decoded_types)
+
+    while True:
         try:
-            nbytes, recid, dg = reader.readDatagram()
+            record_type, offset, record = next(records)
+        except StopIteration:
+            break
         except Exception as e:
             print(f"Error reading datagram: {e}", file=sys.stderr)
             break
 
-        datagram_counts[recid] += 1
+        recid = int(record_type)
+        is_ping = recid == RecordType.GSF_RECORD_SWATH_BATHYMETRY_PING
         name = recordnames.get(recid, f"UNKNOWN ({recid})")
 
         if args.list:
             print(name)
 
+        if is_ping and record is not None:
+            beams = record["Beams"]
+
         # --- handle pingHeader and pingHeaderVerbose ---
-        if recid == SWATH_BATHYMETRY and (args.pingHeader or args.pingHeaderVerbose):
-            # read raw bytes for this datagram
-            fh.seek(dg.offset)
-            raw = fh.read(nbytes + 8)
-
-            # unpack size & id / checksum
-            size_word, ident = struct.unpack(">II", raw[:8])
-            has_checksum = ((ident >> 31) & 1) == 1
-
-            # unpack ping header
-            start = 8 + (4 if has_checksum else 0)
-            hdr = struct.unpack(ping_hdr_fmt, raw[start:start+ping_hdr_size])
-            t_sec, t_nsec = hdr[0], hdr[1]
-            ts = datetime.fromtimestamp(t_sec + t_nsec/1e9, tz=timezone.utc)
-            lon, lat = hdr[2]/1e7, hdr[3]/1e7
-            nbeams, centre, flags = hdr[4], hdr[5], hdr[6]
-            tide, depthCorr = hdr[8]/100, hdr[9]/100
-            heading, pitch, roll = hdr[10]/100, hdr[11]/100, hdr[12]/100
-            heave, course, speed = hdr[13]/100, hdr[14]/100, hdr[15]/100
-            height, sep, gpstc = hdr[16]/100, hdr[17]/100, hdr[18]/100
-            reserved, spare = hdr[7], hdr[19]
-
-            # scan subrecords
+        if is_ping and (args.pingHeader or args.pingHeaderVerbose):
+            # read exactly this record's raw bytes, to list its subrecords
+            fh.seek(offset)
+            raw = fh.read(record_sizes[offset])
             subs = scan_subrecords(raw, ping_hdr_size)
 
             # print header fields
             print("\n=== SWATH_BATHYMETRY Ping Header ===")
-            print(f"Timestamp            : {ts.isoformat().replace('+00:00','Z')}")
-            print(f"Latitude  (°)        : {lat:.7f}")
-            print(f"Longitude (°)        : {lon:.7f}")
-            print(f"Num Beams            : {nbeams}")
-            print(f"Centre Beam          : {centre}")
-            print(f"Usable               : {flags & 1 == 0}")
-            print(f"Tide Corrector   (m) : {tide:.2f}")
-            print(f"Depth Corrector  (m) : {depthCorr:.2f}")
-            print(f"Heading         (°)  : {heading:.2f}")
-            print(f"Pitch           (°)  : {pitch:.2f}")
-            print(f"Roll            (°)  : {roll:.2f}")
-            print(f"Heave           (m)  : {heave:.2f}")
-            print(f"Course          (°)  : {course:.2f}")
-            print(f"Speed        (knots): {speed:.2f}")
-            print(f"Height          (m)  : {height:.3f}")
-            print(f"Separation      (m)  : {sep:.3f}")
-            print(f"GPS Tide Corr.  (m)  : {gpstc:.3f}")
-            print(f"Reserved             : {reserved}")
-            print(f"Spare                : {spare}")
+            print(f"Timestamp            : {record['PingTime'].replace('+00:00', 'Z')}")
+            print(f"Latitude  (°)        : {record['Latitude_deg']:.7f}")
+            print(f"Longitude (°)        : {record['Longitude_deg']:.7f}")
+            print(f"Num Beams            : {record['NumberBeams']}")
+            print(f"Centre Beam          : {record['CenterBeam']}")
+            print(f"Usable               : {record['PingFlags'] & 1 == 0}")
+            print(f"Tide Corrector   (m) : {record['TideCorrector_m']:.2f}")
+            print(f"Depth Corrector  (m) : {record['DepthCorrector_m']:.2f}")
+            print(f"Heading         (°)  : {record['Heading_deg']:.2f}")
+            print(f"Pitch           (°)  : {record['Pitch_deg']:.2f}")
+            print(f"Roll            (°)  : {record['Roll_deg']:.2f}")
+            print(f"Heave           (m)  : {record['Heave_m']:.2f}")
+            print(f"Course          (°)  : {record['Course_deg']:.2f}")
+            print(f"Speed        (knots): {record['Speed_kn']:.2f}")
+            print(f"Height          (m)  : {record['Height_m']:.3f}")
+            print(f"Separation      (m)  : {record['SEP_m']:.3f}")
+            print(f"GPS Tide Corr.  (m)  : {record['GPSTideCorrector_m']:.3f}")
             print(f"Subrecords           : {len(subs)}")
             if subs:
                 labeled = ", ".join(
@@ -219,94 +245,73 @@ def main() -> None:
                 )
                 print(f"Subrecord IDs        : {labeled}")
 
-            # decode & print each subrecord’s values
+            # print each decoded beam array, under its gsfu column label
             if args.pingHeaderVerbose and subs:
-                # let pygsf decode into dg.*
-                reader.scalefactorsd = dg.read(reader.scalefactorsd)
                 print("\n  -- Decoded Subrecord Contents --")
                 for sid, _ in subs:
-                    key = subrecord_names.get(sid)
-                    if key and hasattr(dg, key):
-                        arr = getattr(dg, key)
-                        print(f"  {key:30}: {arr}")
+                    label = beam_array_labels.get(sid)
+                    if label is not None and beams[label] is not None:
+                        print(f"  {label:30}: {beams[label]}")
                     else:
-                        print(f"  {sid:<3} UNKNOWN or not decoded by base library")
+                        print(f"  {sid:<3} UNKNOWN or not decoded by gsfu")
 
         # --- existing functionality preserved below ---
-        if args.positions and recid == SWATH_BATHYMETRY:
-            try:
-                dg.read(reader.scalefactorsd, headeronly=False)
-                print(
-                    f"Time: {dg.timestamp:.3f}, "
-                    f"Lon: {dg.longitude:.7f}, "
-                    f"Lat: {dg.latitude:.7f}"
-                )
-            except Exception as e:
-                print(f"Error reading SWATH_BATHYMETRY position: {e}", file=sys.stderr)
+        if args.positions and is_ping:
+            print(
+                f"Time: {posix_seconds(record['PingTime']):.3f}, "
+                f"Lon: {record['Longitude_deg']:.7f}, "
+                f"Lat: {record['Latitude_deg']:.7f}"
+            )
 
-        if (args.depths or args.depthStats) and recid == SWATH_BATHYMETRY:
-            try:
-                reader.scalefactorsd = dg.read(reader.scalefactorsd)
-            except Exception as e:
-                print(f"Error reading SWATH_BATHYMETRY datagram: {e}", file=sys.stderr)
+        if (args.depths or args.depthStats) and is_ping:
+            # A ping without a depth array is counted as an empty one.
+            depths = beams["Depth_m"] if beams["Depth_m"] is not None else np.array([])
+            if depths.size == 0:
+                empty_depth_pings += 1
+                if args.depthStats:
+                    print("Depth Stats – Empty depth array")
+                    for fname in [
+                        "AcrossTrack_m", "AlongTrack_m",
+                        "TravelTime_s", "BeamFlags",
+                        "MeanCalAmplitude_dB",
+                        "QualityFlags"
+                    ]:
+                        if beams[fname] is not None:
+                            print(f"  {fname:30} len={len(beams[fname])}")
+                        else:
+                            print(f"  {fname:30} not present")
                 continue
 
-            try:
-                depths = np.array(dg.DEPTH_ARRAY)
-                if depths.size == 0:
-                    empty_depth_pings += 1
-                    if args.depthStats:
-                        print("Depth Stats – Empty depth array")
-                        for fname in [
-                            "ACROSS_TRACK_ARRAY", "ALONG_TRACK_ARRAY",
-                            "TRAVEL_TIME_ARRAY", "BEAM_FLAGS_ARRAY",
-                            "MEAN_CALIBRATED_AMPLITUDE_ARRAY",
-                            "QUALITY_FLAGS_ARRAY"
-                        ]:
-                            if hasattr(dg, fname):
-                                arr = getattr(dg, fname)
-                                if isinstance(arr, (list, np.ndarray)):
-                                    print(f"  {fname:30} len={len(arr)}")
-                                else:
-                                    print(f"  {fname:30} present but not list/ndarray")
-                            else:
-                                print(f"  {fname:30} not present")
-                    continue
+            valid_depth_pings += 1
 
-                valid_depth_pings += 1
+            if args.depths:
+                print(
+                    f"Depths ({depths.size}): "
+                    f"{np.array2string(depths, precision=2, threshold=10)}"
+                )
 
-                if args.depths:
-                    print(
-                        f"Depths ({depths.size}): "
-                        f"{np.array2string(depths, precision=2, threshold=10)}"
-                    )
+            if args.depthStats:
+                dmin, dmax, dmean = (
+                    np.nanmin(depths),
+                    np.nanmax(depths),
+                    np.nanmean(depths),
+                )
+                print(f"Depth Stats – Min: {dmin:.2f}, Max: {dmax:.2f}, Mean: {dmean:.2f}")
+                flags = beams["BeamFlags"]
+                if flags is not None and len(flags) > 0:
+                    total = flags.size
+                    bad = np.count_nonzero(flags)
+                    good = total - bad
+                    print(f"Beam Flags – Total: {total}, Good: {good}, Bad: {bad}")
+                else:
+                    print("Beam Flags – Not available")
 
-                if args.depthStats:
-                    dmin, dmax, dmean = (
-                        np.nanmin(depths),
-                        np.nanmax(depths),
-                        np.nanmean(depths),
-                    )
-                    print(f"Depth Stats – Min: {dmin:.2f}, Max: {dmax:.2f}, Mean: {dmean:.2f}")
-                    if hasattr(dg, 'BEAM_FLAGS_ARRAY') and dg.BEAM_FLAGS_ARRAY:
-                        flags = np.array(dg.BEAM_FLAGS_ARRAY)
-                        total = flags.size
-                        bad = np.count_nonzero(flags)
-                        good = total - bad
-                        print(f"Beam Flags – Total: {total}, Good: {good}, Bad: {bad}")
-                    else:
-                        print("Beam Flags – Not available")
-
-            except Exception as e:
-                print(f"Error reading SWATH_BATHYMETRY depths: {e}", file=sys.stderr)
-
-        if args.attitude and recid == ATTITUDE:
-            try:
-                dg.read()
-                for ts, roll, pitch, heave in zip(dg.ts, dg.roll, dg.pitch, dg.heave):
-                    print(f"Time: {ts:.3f}, Roll: {roll:.2f}, Pitch: {pitch:.2f}, Heave: {heave:.2f}")
-            except Exception as e:
-                print(f"Error reading ATTITUDE: {e}", file=sys.stderr)
+        if args.attitude and recid == RecordType.GSF_RECORD_ATTITUDE:
+            times = posix_seconds(record["Time"])
+            for ts, roll, pitch, heave in zip(
+                times, record["Roll_deg"], record["Pitch_deg"], record["Heave_m"]
+            ):
+                print(f"Time: {ts:.3f}, Roll: {roll:.2f}, Pitch: {pitch:.2f}, Heave: {heave:.2f}")
 
     # end while
 
