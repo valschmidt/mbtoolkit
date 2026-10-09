@@ -53,7 +53,8 @@ An open-source suite of verification, conversion, and best-practice tools for Ge
    ```
    python ./tools/gsf_timecheck.py path/to/data.gsf
    ```
-7. Repairs a GSF file by adding missing required subrecords as empty subrecords.
+7. Copies a GSF file and reports the pings that lack subrecords a profile requires.
+   (It no longer pads them with empty subrecords, which GSF readers misread.)
    ```
    python ./tools/gsf_repair.py minimal-xyz.json path/to/data.gsf -o path/to/data_fixed.gsf
    ```

@@ -65,7 +65,12 @@ python tools/gsf_verify.py profiles/xyz.json data/sample.gsf
 
 ### gsf_repair.py
 
-Repair a GSF file to comply with a minimal profile (e.g., missing subrecords).
+Copy a GSF file and report the pings that lack subrecords a profile requires.
+
+Earlier versions padded those pings with empty (zero-length) subrecords. The
+reference GSF library never writes such a subrecord and misreads it, either
+failing to read the ping or returning wrong beam values, so the tool now copies
+the file unchanged and lists every requirement it could not satisfy.
 
 **Usage:**
 ```bash

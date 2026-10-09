@@ -2,66 +2,51 @@
 """
 gsf_repair.py - Repair a GSF file to comply with a minimal profile.
 
-This tool repairs GSF files by adding missing required subrecords as empty
-subrecords, ensuring the file complies with a specified profile definition.
+This tool copies a GSF file and reports the swath bathymetry pings that lack
+subrecords a profile requires.
+
+Earlier versions padded each such ping with empty (zero-length) subrecords.
+The reference GSF library (gsflib 3.11) never writes a zero-length subrecord,
+and it reads them wrongly: it ignores one that ends a ping, and with one
+inside a ping it either fails to read the ping or returns shifted, wrong
+beam values. Since GSF offers no valid empty subrecord, this tool no longer
+adds any. It copies the file unchanged and lists every requirement it could
+not satisfy.
 """
 
 import argparse
 import json
 import os
-import struct
+import shutil
 import sys
-from typing import Dict, Any
 from collections import defaultdict
-from pathlib import Path
-REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from typing import Dict, Any
 
-from readers.base import GSFREADER, SWATH_BATHYMETRY
+from GSFU import gsf
 
 # Import utility functions - handle both relative and absolute imports
 try:
-    from .utils import scan_subrecord_ids
+    from .utils import missing_subrecords, ping_header_size, scan_subrecord_ids
 except ImportError:
     # Fallback for when script is run directly
-    import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent))
-    from utils import scan_subrecord_ids
+    from utils import missing_subrecords, ping_header_size, scan_subrecord_ids
 
-def make_empty_subrecord(sub_id: int) -> bytes:
-    """
-    Build an empty subrecord with zero-length payload.
-    
-    Creates a subrecord structure with the specified ID but no payload data.
-    Format: [1-byte subrecord_id][3-byte length=0].
-    
-    Args:
-        sub_id: Subrecord ID (0-255).
-        
-    Returns:
-        bytes: 4-byte subrecord structure with zero length.
-        
-    Example:
-        >>> result = make_empty_subrecord(100)
-        >>> len(result)
-        4
-        >>> result[0]
-        100
-    """
-    return struct.pack(">B3s", sub_id, b"\x00\x00\x00")
+#: The GSF record ID of a swath bathymetry ping (gsf.h: GSF_RECORD_SWATH_BATHYMETRY_PING).
+SWATH_BATHYMETRY = 2
+
 
 def load_profile(path: str) -> Dict[str, Any]:
     """
     Load and parse a GSF profile JSON file.
-    
+
     Args:
         path: Path to the profile JSON file.
-        
+
     Returns:
         Dict containing the profile definition.
-        
+
     Raises:
         FileNotFoundError: If the profile file does not exist.
         json.JSONDecodeError: If the file contains invalid JSON.
@@ -70,10 +55,11 @@ def load_profile(path: str) -> Dict[str, Any]:
         j = json.load(f)
     return j['profile']
 
+
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments for gsf-repair tool.
-    
+
     Returns:
         argparse.Namespace: Parsed command-line arguments containing:
             - profile: Path to JSON profile file
@@ -88,16 +74,18 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out",   "-o", required=True, help="Repaired GSF output")
     return p.parse_args()
 
+
 def main() -> None:
     """
     Main entry point for gsf-repair tool.
-    
-    Repairs a GSF file by adding missing required subrecords as empty subrecords.
-    Reads the input file, checks for missing subrecords according to the profile,
-    adds empty subrecords where needed, and writes the repaired file.
-    
-    Prints a summary of repairs made. Exits with code 1 if files are not found
-    or if errors occur during processing.
+
+    Copies a GSF file to the output path unchanged, and checks each swath
+    bathymetry ping for the subrecords the profile requires, using the same
+    rules as gsf-verify. Prints the number of records of each type, and then
+    how many pings lack each required subrecord. No subrecords are added,
+    because GSF has no valid empty subrecord to add.
+
+    Exits with code 1 if the profile or input file is not found.
     """
     args = parse_args()
 
@@ -108,68 +96,53 @@ def main() -> None:
             sys.exit(1)
 
     profile = load_profile(args.profile)
-    # build a quick map: record_id -> list of required subrecord_ids
-    ping_rules = {}
+    # the ping's required subrecords, as (subrecord_id, name) tuples
+    required = []
     for rec in profile.get('required_records', []):
         if rec['record_id'] == SWATH_BATHYMETRY:
-            ping_rules[SWATH_BATHYMETRY] = [
+            required = [
                 (sr['subrecord_id'], sr.get('subrecord_name', str(sr['subrecord_id'])))
                 for sr in rec.get('required_subrecords', [])
             ]
 
-    # set up reader & raw I/O
-    reader = GSFREADER(args.infile)
-    fh_in  = open(args.infile, "rb")
-    fh_out = open(args.out,    "wb")
+    reader = gsf(args.infile)
+    reader.index_file()
 
-    # ping header size for raw-scan:
-    ping_hdr_fmt  = ">llll5hlH3h2Hlllh"
-    ping_hdr_size = struct.calcsize(ping_hdr_fmt)
-
-    # track how many we fixed
-    fixed_counts = defaultdict(int)
+    # count records of each type, in the order the types first appear
     total_counts = defaultdict(int)
-
-    # iterate
-    while reader.moreData():
-        try:
-            nbytes, recid, dg = reader.readDatagram()
-        except Exception as e:
-            print(f"[ERROR] reading datagram: {e}", file=sys.stderr)
-            break
-
+    for recid in reader.Index["RecordID"].tolist():
         total_counts[recid] += 1
 
-        # pull raw bytes
-        fh_in.seek(dg.offset)
-        raw = fh_in.read(nbytes + 8)  # size-word + id-word + data
+    # count the pings that lack each required subrecord
+    unrepaired = defaultdict(int)
+    if required:
+        ping_hdr_size = ping_header_size(reader.gsfVersion)
+        record_sizes = dict(
+            zip(reader.Index["ByteOffset"].tolist(), reader.Index["TotalBytes"].tolist())
+        )
+        with open(args.infile, "rb") as fh_in:
+            for _record_type, offset, ping in reader.iter_records(SWATH_BATHYMETRY):
+                def read_subrecord_ids(offset=offset):
+                    fh_in.seek(offset)
+                    return scan_subrecord_ids(fh_in.read(record_sizes[offset]), ping_hdr_size)
 
-        # only repair swath bathy pings
-        if recid == SWATH_BATHYMETRY and SWATH_BATHYMETRY in ping_rules:
-            required = ping_rules[SWATH_BATHYMETRY]
-            subs = scan_subrecord_ids(raw, ping_hdr_size)
-            missing = [ (sid,name) for sid,name in required if sid not in subs ]
-            if missing:
-                # append empty subrecords
-                for sid, name in missing:
-                    raw += make_empty_subrecord(sid)
-                # fix size word (first 4 bytes) to reflect the added length
-                old_size = struct.unpack(">I", raw[:4])[0]
-                new_size = old_size + 4*len(missing)
-                raw = struct.pack(">I", new_size) + raw[4:]
-                fixed_counts[recid] += len(missing)
+                for missing in missing_subrecords(ping, required, read_subrecord_ids):
+                    unrepaired[missing] += 1
+    reader.closeFile()
 
-        # write the (possibly modified) raw datagram out
-        fh_out.write(raw)
-
-    fh_in .close()
-    fh_out.close()
+    # GSF has no valid empty subrecord to add, so the file is copied unchanged.
+    shutil.copyfile(args.infile, args.out)
 
     # summary
     print(f"Repaired GSF written to: {args.out}\n")
     for rid, tot in total_counts.items():
-        fixed = fixed_counts.get(rid, 0)
-        print(f"  Record {rid:2d}: total={tot:4d}, subrecords fixed={fixed:4d}")
+        print(f"  Record {rid:2d}: total={tot:4d}, subrecords fixed={0:4d}")
+
+    if unrepaired:
+        print("\nNot repaired, because GSF has no valid empty subrecord to add:")
+        for (sid, name), count in sorted(unrepaired.items()):
+            print(f"  Record {SWATH_BATHYMETRY:2d}: {count:4d} pings lack '{name}' ({sid})")
+
 
 if __name__ == "__main__":
     main()

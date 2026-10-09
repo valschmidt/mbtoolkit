@@ -64,7 +64,7 @@ mb-community-toolkit/
 Each script is a standalone command-line tool:
 - `gsf_info.py`: File inspection and information extraction
 - `gsf_verify.py`: Profile-based validation
-- `gsf_repair.py`: File repair and compliance fixing
+- `gsf_repair.py`: File copying with a report of unmet profile requirements
 - `gsf_timecheck.py`: Time ordering verification
 
 ### Profiles (`profiles/`)
