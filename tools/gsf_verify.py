@@ -74,8 +74,8 @@ def attr_map(key: str) -> str:
     """
     return key.replace("_", "")
 
-def verify(profile: str, gsf_file: str) -> None:
-    profile = load_profile(profile)
+def verify(profile_path: str, gsf_file: str) -> None:
+    profile = load_profile(profile_path)
     required = { r['record_id']: r for r in profile.get('required_records', []) }
 
     reader = GSFREADER(gsf_file)
@@ -147,7 +147,7 @@ def verify(profile: str, gsf_file: str) -> None:
                 f"Missing required record type {rule['record_type']} (ID={rid})"
             )
 
-    print(f"\nValidation report for '{gsf_file}' against profile '{profile}':")
+    print(f"\nValidation report for '{gsf_file}' against profile '{profile_path}':")
     if not violations:
         print("  ✅ All checks passed. GSF file is compliant.")
     else:

@@ -5,7 +5,7 @@ import pytest
 import json
 import os
 import tempfile
-from tools.gsf_verify import load_profile, attr_map
+from tools.gsf_verify import load_profile, attr_map, verify
 
 
 class TestLoadProfile:
@@ -79,3 +79,18 @@ class TestAttrMap:
         """Test attribute mapping with empty string."""
         assert attr_map("") == ""
 
+
+
+class TestVerifyReport:
+    """Tests for the validation report gsf_verify prints."""
+
+    def test_report_names_the_profile_file(self, capsys, compliant_gsf, tmp_path, sample_profile):
+        """Test that the report header names the profile file rather than printing its contents."""
+        profile_path = tmp_path / "profile.json"
+        profile_path.write_text(json.dumps(sample_profile))
+
+        verify(str(profile_path), compliant_gsf)
+
+        out = capsys.readouterr().out
+        assert f"against profile '{profile_path}':" in out
+        assert "Test Profile" not in out
